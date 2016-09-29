@@ -53,7 +53,7 @@ namespace std
 const path out_dir = "out";
 path boost_dir = "g:/dev/boost";
 const path bs_insertions_file = "inserts.yml";
-String version = "1.61.0";
+String version = "1.62.0";
 const String source = "tag";
 String source_name = "boost-";
 
