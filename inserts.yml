@@ -264,6 +264,10 @@ pool:
         - include/.*\.hpp
         - include/.*\.ipp
 
+python:
+    dependencies:
+        pvt.cppan.demo.python.lib: 3
+
 signals:
     files:
         - include/.*\.hpp
