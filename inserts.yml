@@ -266,7 +266,7 @@ pool:
 
 python:
     dependencies:
-        pvt.cppan.demo.python.lib: 3
+        - pvt.cppan.demo.python.libcompat
 
 signals:
     files:
