@@ -192,11 +192,6 @@ log:
         remove_src_unix(src/debug_output_backend.cpp)
         remove_src_unix(src/light_rw_mutex.cpp)
 
-        if (WIN32)
-            add_definitions(-DWIN32_LEAN_AND_MEAN)
-            add_definitions(-DBOOST_USE_WINDOWS_H)
-        endif()
-
     options:
         any:
             definitions:
@@ -204,6 +199,11 @@ log:
                     - BOOST_LOG_WITHOUT_EVENT_LOG
                 private:
                     - BOOST_LOG_BUILDING_THE_LIB
+                win32:
+                    public:
+                        - WIN32_LEAN_AND_MEAN
+                        - BOOST_USE_WINDOWS_H
+                        - NOMINMAX
         shared:
             definitions:
                 public:

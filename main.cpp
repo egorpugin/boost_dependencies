@@ -1,10 +1,12 @@
 /*
+local_settings:
+    silent: false
 dependencies:
     pvt.cppan.demo.boost.algorithm: "*"
     pvt.cppan.demo.boost.filesystem: "*"
     pvt.cppan.demo.boost.functional: "*"
     pvt.cppan.demo.boost.range: "*"
-    pvt.cppan.demo.yaml_cpp: 0.5.3
+    pvt.cppan.demo.jbeder.yaml_cpp: master
     pvt.cppan.demo.nlohmann.json: 2
 */
 
@@ -283,7 +285,17 @@ void read_dir(const path &dir)
         // read src deps
         if (lib->requires_building())
         {
-            auto s = read_file(dir / lib->get_name() / "build" / "Jamfile.v2");
+            auto f = dir / lib->get_name() / "build";
+            String s;
+            if (fs::exists(f / "Jamfile.v2"))
+                s = read_file(f / "Jamfile.v2");
+            else if (fs::exists(f / "Jamfile"))
+                s = read_file(f / "Jamfile");
+            else
+            {
+                std::cerr << "no jamfile found\n";
+                continue;
+            }
             std::regex r_lib1("<library>\\s*?/boost/([^/]*?)//boost_\\w+");
             std::regex r_lib2("/boost//(\\w+)");
             std::regex r_lib3("/build//boost_(\\w+)");
