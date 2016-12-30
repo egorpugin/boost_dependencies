@@ -55,9 +55,11 @@ namespace std
 const path out_dir = "out";
 path boost_dir = "g:/dev/boost";
 const path bs_insertions_file = "inserts.yml";
-String version = "1.62.0";
+String version = "1.63.0";
+String remote;
 const String source = "tag";
 String source_name = "boost-";
+std::map<String, String> commits;
 
 const std::map<String, std::set<String>> additional_src_deps = {
     {"thread", {"date_time"}},
@@ -479,6 +481,7 @@ void write_yaml(const path &fn)
     inserts = YAML::LoadFile(bs_insertions_file.string());
 
     YAML::Node root;
+    //root["source"]["remote"] = remote;
     root["version"] = version;
     root["root_project"] = root_path;
 
@@ -490,9 +493,23 @@ void write_yaml(const path &fn)
     {
         auto &lib = lp.second;
 
+        if (commits[lib->get_name()].empty())
+        {
+            std::cerr << "no commit for lib: " << lib->get_name() << "\n";
+            continue;
+        }
+
         YAML::Node project = projects[root_path + "." + lib->get_name()];
         project["source"]["git"] = lib->get_url();
-        project["source"][source] = source_name;
+        project["source"]["commit"] = commits[lib->get_name()];
+        //project["source"][source] = source_name;
+        //project["source"]["remote"] = remote;
+
+        //if (!project["root_directory"].IsDefined())
+        //    project["root_directory"] = "libs/" + lib->get_name();
+
+        if (lib->get_name() == "log_setup")
+            project["source"] = projects[root_path + ".log"]["source"];
 
         if (!project["files"].IsDefined())
         {
@@ -616,6 +633,26 @@ int main(int argc, char* argv[])
     if (argc > 2)
         version = argv[2];
     source_name += version;
+
+    std::istringstream ss(read_file(version + ".commits"));
+    while (1)
+    {
+        String lib, commit;
+        ss >> lib >> commit;
+        if (!ss)
+            break;
+        lib = lib.substr(5); // length of "libs/"
+        commits[lib] = commit;
+    }
+
+    /*if (argc > 3)
+        remote = argv[3];
+    else
+    {
+        std::cerr << "No remote specified\n";
+        std::cerr << "usage: boost_deps boost_dir version remote\n";
+        return 1;
+    }*/
 
     fs::create_directories(out_dir);
 

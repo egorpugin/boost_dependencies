@@ -212,9 +212,6 @@ log:
                     - BOOST_LOG_DLL
 
 log_setup:
-    source:
-      git: https://github.com/boostorg/log
-      tag: boost-1.61.0
     files:
         headers: include/.*
         sources:
