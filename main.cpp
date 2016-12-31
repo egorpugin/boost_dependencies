@@ -496,7 +496,7 @@ void write_yaml(const path &fn)
         if (commits[lib->get_name()].empty())
         {
             std::cerr << "no commit for lib: " << lib->get_name() << "\n";
-            continue;
+            //continue;
         }
 
         YAML::Node project = projects[root_path + "." + lib->get_name()];
@@ -627,6 +627,12 @@ void release()
 
 int main(int argc, char* argv[])
 {
+    if (argc != 3)
+    {
+        std::cerr << "usage: main boost_dir version\n";
+        return 1;
+    }
+
     if (argc > 1)
         boost_dir = argv[1];
 
