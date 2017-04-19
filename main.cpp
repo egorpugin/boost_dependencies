@@ -1,6 +1,8 @@
 /*
 local_settings:
     silent: false
+    output_dir: .
+    use_shared_libs: false
 dependencies:
     pvt.cppan.demo.boost.algorithm: "*"
     pvt.cppan.demo.boost.filesystem: "*"
@@ -123,8 +125,19 @@ struct Library
     {
         if (name == "numeric/conversion")
             return "numeric";
+        if (name == "numeric/ublas")
+            return "ublas";
+        if (name == "numeric/odeint")
+            return "odeint";
+        if (name == "numeric/interval")
+            return "interval";
         if (name.find("numeric") == 0)
             return name.substr(strlen("numeric/"));
+        return name;
+    }
+
+    String get_dir() const
+    {
         return name;
     }
 
@@ -287,7 +300,7 @@ void read_dir(const path &dir)
         // read src deps
         if (lib->requires_building())
         {
-            auto f = dir / lib->get_name() / "build";
+            auto f = dir / lib->get_dir() / "build";
             String s;
             if (fs::exists(f / "Jamfile.v2"))
                 s = read_file(f / "Jamfile.v2");
@@ -481,7 +494,10 @@ void write_yaml(const path &fn)
     inserts = YAML::LoadFile(bs_insertions_file.string());
 
     YAML::Node root;
-    //root["source"]["remote"] = remote;
+    // make cppan happy
+    // TODO: remove
+    // FIXME: do not throw error when all sources are provided
+    root["source"]["git"] = "https://github.com/boostorg";
     root["version"] = version;
     root["root_project"] = root_path;
 
@@ -493,7 +509,7 @@ void write_yaml(const path &fn)
     {
         auto &lib = lp.second;
 
-        if (commits[lib->get_name()].empty())
+        if (commits[lib->get_dir()].empty())
         {
             std::cerr << "no commit for lib: " << lib->get_name() << "\n";
             //continue;
@@ -501,7 +517,7 @@ void write_yaml(const path &fn)
 
         YAML::Node project = projects[root_path + "." + lib->get_name()];
         project["source"]["git"] = lib->get_url();
-        project["source"]["commit"] = commits[lib->get_name()];
+        project["source"]["commit"] = commits[lib->get_dir()];
         //project["source"][source] = source_name;
         //project["source"]["remote"] = remote;
 

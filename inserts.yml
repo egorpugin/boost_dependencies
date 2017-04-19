@@ -142,7 +142,7 @@ function:
 
 iostreams:
     dependencies:
-        - pvt.cppan.demo.zlib
+        - pvt.cppan.demo.madler.zlib
         - pvt.cppan.demo.bzip2
 
 log:
