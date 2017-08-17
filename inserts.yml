@@ -145,6 +145,43 @@ iostreams:
         - pvt.cppan.demo.madler.zlib
         - pvt.cppan.demo.bzip2
 
+locale:
+    c++: 11
+
+    exclude_from_build:
+        -   src/icu/.*
+        -   src/posix/.*
+        -   src/win32/.*
+
+    options:
+        any:
+            definitions:
+                unix:
+                    public:
+                        -   BOOST_LOCALE_NO_WINAPI_BACKEND
+                        -   BOOST_LOCALE_WITH_ICONV
+                win32:
+                    public:
+                        -   BOOST_LOCALE_NO_POSIX_BACKEND
+
+    dependencies:
+        - name: pvt.cppan.demo.gnu.iconv.libiconv
+          version: 1
+          conditions:
+            - UNIX
+        - name: pvt.cppan.demo.unicode.icu.i18n
+          version: "*"
+          conditions:
+            - UNIX
+
+    post_sources: |
+        if (WIN32)
+            add_src_dir(src/win32/*)
+        else()
+            add_src_dir(src/icu/*)
+            add_src_dir(src/posix/*)
+        endif()
+
 log:
     files:
         headers: include/.*

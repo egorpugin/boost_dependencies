@@ -55,9 +55,9 @@ namespace std
 }
 
 const path out_dir = "out";
-path boost_dir = "g:/dev/boost";
+path boost_dir = "d:/dev/boost";
 const path bs_insertions_file = "inserts.yml";
-String version = "1.63.0";
+String version = "1.65.0";
 String remote;
 const String source = "tag";
 String source_name = "boost-";
@@ -642,12 +642,13 @@ void release()
 }
 
 int main(int argc, char* argv[])
+try
 {
-    if (argc != 3)
+    /*if (argc != 3)
     {
         std::cerr << "usage: main boost_dir version\n";
         return 1;
-    }
+    }*/
 
     if (argc > 1)
         boost_dir = argv[1];
@@ -681,4 +682,16 @@ int main(int argc, char* argv[])
     release();
 
     return 0;
+}
+catch (const std::exception &e)
+{
+    std::cerr << e.what() << "\n";
+    //if (auto st = boost::get_error_info<traced_exception>(e))
+    //    std::cerr << *st << '\n';
+    return 1;
+}
+catch (...)
+{
+    std::cerr << "Unhandled unknown exception" << "\n";
+    return 1;
 }

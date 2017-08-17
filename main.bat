@@ -1,7 +1,7 @@
 @if [%1]==[] goto usage
 
-@call g:\dev\boost_src\fetch.bat %1
-main g:\dev\boost_src\ %1
+@call d:\dev\boost_src\fetch.bat %1
+main d:\dev\boost_src\ %1
 @goto :eof
 
 :usage
