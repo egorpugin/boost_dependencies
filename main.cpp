@@ -29,7 +29,7 @@ dependencies:
 
 #include <yaml-cpp/yaml.h>
 
-#include <json.hpp>
+#include <nlohmann/json.hpp>
 
 using String = std::string;
 struct Library;
@@ -58,7 +58,7 @@ namespace std
 const path out_dir = "out";
 path boost_dir = "d:/dev/boost";
 const path bs_insertions_file = "inserts.yml";
-String version = "1.65.0";
+String version = "1.67.0";
 String remote;
 const String source = "tag";
 String source_name = "boost-";
@@ -517,6 +517,7 @@ void write_yaml(const path &fn)
         }
 
         YAML::Node project = projects[root_path + "." + lib->get_name()];
+        project["type"] = "library";
         project["source"]["git"] = lib->get_url();
         project["source"]["commit"] = commits[lib->get_dir()];
         //project["source"][source] = source_name;
