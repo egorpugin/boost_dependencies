@@ -1,8 +1,6 @@
 @if [%1]==[] goto usage
 
-@pushd d:\dev\boost
-@call d:\dev\boost\fetch.bat %1
-@popd
+@call fetch.bat %1
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
 main d:\dev\boost %1

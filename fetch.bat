@@ -1,5 +1,8 @@
 @if [%1]==[] goto usage
 
+@setlocal
+@cd d:\dev\boost
+
 @set j=20
 
 git fetch --recurse-submodules -j%j%
