@@ -3,7 +3,6 @@ local_settings:
     silent: false
     output_dir: .
     use_shared_libs: false
-    #storage_dir: .s
 dependencies:
     pvt.cppan.demo.boost.algorithm: "*"
     pvt.cppan.demo.boost.filesystem: "*"
@@ -506,6 +505,9 @@ void write_yaml(const path &fn)
     for (auto i : inserts)
         projects[root_path + "." + i.first.as<String>()] = i.second;
 
+    String s_cpp_libs_ho, s_cpp_libs_compiled;
+    String s_cpp_deps;
+
     for (auto &lp : libraries)
     {
         auto &lib = lp.second;
@@ -515,6 +517,11 @@ void write_yaml(const path &fn)
             std::cerr << "no commit for lib: " << lib->get_name() << "\n";
             //continue;
         }
+
+        if (lib->requires_building())
+            s_cpp_libs_compiled += "\"" + lib->get_name() + "\",";
+        else
+            s_cpp_libs_ho += "\"" + lib->get_name() + "\",";
 
         YAML::Node project = projects[root_path + "." + lib->get_name()];
         project["source"]["git"] = lib->get_url();
@@ -548,9 +555,13 @@ void write_yaml(const path &fn)
                 header_dep["name"] = root_path + "." + dep->get_name();
                 header_dep["include_directories_only"] = true;
                 deps.push_back(header_dep);
+
+                s_cpp_deps += "add_public_dependency(\"" + lib->get_name() + "\", \"" + dep->get_name() + "\", true);\n";
                 continue;
             }
             deps.push_back(root_path + "." + dep->get_name());
+
+            s_cpp_deps += "add_public_dependency(\"" + lib->get_name() + "\", \"" + dep->get_name() + "\", false);\n";
         }
         for (auto &dep : lib->header_only_deps)
         {
@@ -558,63 +569,24 @@ void write_yaml(const path &fn)
             header_dep["name"] = root_path + "." + dep->get_name();
             header_dep["include_directories_only"] = true;
             deps.push_back(header_dep);
-        }
-        if (!lib->deps.empty() || !lib->header_only_deps.empty())
-        {
-            for (auto d : deps)
-                project["dependencies"].push_back(d);
-        }
 
-        if (lib->requires_building())
-        {
-            auto n = lib->get_name();
-            boost::algorithm::to_upper(n);
-            project["options"]["static"]["definitions"]["public"].push_back("BOOST_" + n + "_STATIC_LINK");
-            project["options"]["static"]["definitions"]["public"].push_back("BOOST_ALL_STATIC_LINK");
-            project["options"]["static"]["definitions"]["public"].push_back("BOOST_" + n + "_BUILD_LIB");
-
-            project["options"]["shared"]["definitions"]["public"].push_back("BOOST_" + n + "_DYN_LINK");
-            project["options"]["shared"]["definitions"]["public"].push_back("BOOST_ALL_DYN_LINK");
-            project["options"]["shared"]["definitions"]["private"].push_back("BOOST_" + n + "_BUILD_DLL");
-            project["options"]["shared"]["definitions"]["public"].push_back("BOOST_" + n + "_USE_DLL");
-
-            project["options"]["any"]["definitions"]["private"].push_back("BOOST_" + n + "_SOURCE");
-            project["options"]["any"]["definitions"]["private"].push_back("BOOST_" + n + "_BUILDING_THE_LIB");
-        }
-
-        if (!lib->requires_building())
-            project["header_only"] = true;
-
-        {
-            boost::system::error_code ec;
-            auto p = fn.parent_path();
-            fs::create_directories(p / "single", ec);
-            fs::create_directories(p / "root", ec);
-
-            {
-                auto r = YAML::Clone(root);
-                r["projects"] = YAML::Node();
-                r["projects"][root_path + "." + lib->get_name()] = project;
-
-                std::ofstream ofile((p / "root" / (lib->get_name() + ".yml")).string());
-                ofile.width(4);
-                ofile << r;
-            }
-
-            {
-                auto r = YAML::Clone(project);
-                r["version"] = root["version"];
-
-                std::ofstream ofile((p / "single" / (lib->get_name() + ".yml")).string());
-                ofile.width(4);
-                ofile << r;
-            }
+            s_cpp_deps += "add_public_dependency(\"" + lib->get_name() + "\", \"" + dep->get_name() + "\", true);\n";
         }
     }
 
-    std::ofstream ofile1(fn.string());
-    ofile1.width(4);
-    ofile1 << root;
+
+    {
+        std::ofstream ofile1((fn.parent_path() / "cpp_libs_ho.txt").string());
+        ofile1 << s_cpp_libs_ho;
+    }
+    {
+        std::ofstream ofile1((fn.parent_path() / "cpp_libs_compiled.txt").string());
+        ofile1 << s_cpp_libs_compiled;
+    }
+    {
+        std::ofstream ofile1((fn.parent_path() / "cpp_deps.txt").string());
+        ofile1 << s_cpp_deps;
+    }
 }
 
 void debug()

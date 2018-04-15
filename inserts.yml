@@ -1,4 +1,11 @@
 config:
+    options:
+        any:
+            definitions:
+                win32 and clang:
+                    public:
+                        - BOOST_USE_INTRIN_H=1
+                        - BOOST_USE_WINDOWS_H=1
     post_sources: |
         set(dummy_file ${SDIR}/autolink.dummy)
         if (NOT EXISTS ${dummy_file})
@@ -142,8 +149,9 @@ function:
 
 iostreams:
     dependencies:
-        - pvt.cppan.demo.madler.zlib
-        - pvt.cppan.demo.bzip2
+        - pvt.cppan.demo.madler.zlib: 1
+        - pvt.cppan.demo.bzip2: 1
+        - pvt.cppan.demo.xz_utils.lzma: 5
 
 locale:
     c++: 11
@@ -311,6 +319,25 @@ spirit:
         - include/.*\.hpp
         - include/.*\.ipp
         - include/.*\.cpp
+
+stacktrace:
+    exclude_from_build:
+        - src/.*
+    options:
+        any:
+            link_libraries:
+                win32:
+                    public:
+                        -   DbgEng
+            definitions:
+                unix:
+                    public:
+                        -   BOOST_STACKTRACE_USE_NOOP
+    post_sources: |
+        add_src_win32(src/windbg.cpp)
+        add_src_unix(src/noop.cpp)
+        #add_src_unix(src/backtrace.cpp)
+        #add_src_unix(src/basic.cpp)
 
 thread:
     post_sources: |
