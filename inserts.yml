@@ -344,9 +344,9 @@ thread:
         remove_src(src/pthread/once_atomic.cpp)
         remove_src_win32(src/pthread/thread.cpp)
         remove_src_win32(src/pthread/once.cpp)
-        remove_src_unix(src/win32/thread.cpp)
-        remove_src_unix(src/win32/tss_dll.cpp)
-        remove_src_unix(src/win32/tss_pe.cpp)
+        if (NOT WIN32)
+            remove_src_dir(src/win32/*)
+        endif()
 
     options:
         static:
