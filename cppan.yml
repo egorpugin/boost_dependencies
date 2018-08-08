@@ -1,0 +1,21 @@
+local_settings:
+    silent: false
+    output_dir: .
+    use_shared_libs: false
+
+common_settings:
+    c++: 17
+    dependencies:
+        - pvt.cppan.demo.boost.algorithm: "*"
+        - pvt.cppan.demo.boost.filesystem: "*"
+        - pvt.cppan.demo.boost.functional: "*"
+        - pvt.cppan.demo.boost.range: "*"
+        - pvt.cppan.demo.jbeder.yaml_cpp: master
+        - pvt.cppan.demo.nlohmann.json: "*"
+        - name: pvt.egorpugin.primitives.sw.main
+          version: master
+          local: primitives.sw.main
+
+projects:
+    main:
+        files: main.cpp

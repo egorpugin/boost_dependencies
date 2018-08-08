@@ -1,18 +1,3 @@
-/*
-local_settings:
-    silent: false
-    output_dir: .
-    use_shared_libs: false
-    #storage_dir: .s
-dependencies:
-    pvt.cppan.demo.boost.algorithm: "*"
-    pvt.cppan.demo.boost.filesystem: "*"
-    pvt.cppan.demo.boost.functional: "*"
-    pvt.cppan.demo.boost.range: "*"
-    pvt.cppan.demo.jbeder.yaml_cpp: master
-    pvt.cppan.demo.nlohmann.json: "*"
-*/
-
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -26,12 +11,12 @@ dependencies:
 #include <boost/filesystem.hpp>
 #include <boost/range.hpp>
 #include <boost/functional/hash.hpp>
-
+#include <primitives/filesystem.h>
+#include <primitives/sw/main.h>
+#include <primitives/sw/settings.h>
+#include <nlohmann/json.hpp>
 #include <yaml-cpp/yaml.h>
 
-#include <nlohmann/json.hpp>
-
-using String = std::string;
 struct Library;
 
 struct LibraryLess
@@ -41,24 +26,12 @@ struct LibraryLess
 
 using Libraries = std::set<Library*, LibraryLess>;
 using LibraryMap = std::map<String, Library*>;
-namespace fs = boost::filesystem;
-using path = fs::wpath;
-
-namespace std
-{
-    template<> struct hash<path>
-    {
-        size_t operator()(const path& p) const
-        {
-            return boost::filesystem::hash_value(p);
-        }
-    };
-}
 
 const path out_dir = "out";
-path boost_dir = "d:/dev/boost";
 const path bs_insertions_file = "inserts.yml";
-String version = "1.67.0";
+cl::opt<path> boost_dir("d", cl::desc("directory with boost sources"), cl::value_desc("boost dir"), cl::init("d:/dev/boost"));
+cl::opt<String> version("v", cl::desc("used to open version.commits file"), cl::value_desc("boost version"), cl::Required);
+cl::opt<bool> gen_sw("sw", cl::desc("generate sw script"));
 String remote;
 const String source = "tag";
 String source_name = "boost-";
@@ -224,23 +197,6 @@ void read_json(const path &file)
         }
         libraries[lib->name] = lib;
     }
-}
-
-String read_file(const path &p)
-{
-    if (!fs::exists(p))
-        throw std::runtime_error("File '" + p.string() + "' does not exist");
-
-    auto fn = p.string();
-    std::ifstream ifile(fn, std::ios::in | std::ios::binary);
-    if (!ifile)
-        throw std::runtime_error("Cannot open file " + fn);
-
-    String f;
-    size_t sz = (size_t)fs::file_size(p);
-    f.resize(sz);
-    ifile.read(&f[0], sz);
-    return f;
 }
 
 void read_dir(const path &dir)
@@ -487,7 +443,7 @@ void post_process()
 {
 }
 
-void write_yaml(const path &fn)
+void write_yaml_cppan(const path &fn)
 {
     String root_path = "pvt.cppan.demo.boost";
 
@@ -499,7 +455,7 @@ void write_yaml(const path &fn)
     // TODO: remove
     // FIXME: do not throw error when all sources are provided
     root["source"]["git"] = "https://github.com/boostorg";
-    root["version"] = version;
+    root["version"] = version.getValue();
     root["root_project"] = root_path;
 
     auto projects = root["projects"];
@@ -587,7 +543,7 @@ void write_yaml(const path &fn)
             project["header_only"] = true;
 
         {
-            boost::system::error_code ec;
+            error_code ec;
             auto p = fn.parent_path();
             fs::create_directories(p / "single", ec);
             fs::create_directories(p / "root", ec);
@@ -618,6 +574,116 @@ void write_yaml(const path &fn)
     ofile1 << root;
 }
 
+void write_yaml_sw(const path &fn)
+{
+    String root_path = "pvt.cppan.demo.boost";
+
+    YAML::Node inserts;
+    inserts = YAML::LoadFile(bs_insertions_file.string());
+
+    YAML::Node root;
+    // make cppan happy
+    // TODO: remove
+    // FIXME: do not throw error when all sources are provided
+    root["source"]["git"] = "https://github.com/boostorg";
+    root["version"] = version.getValue();
+    root["root_project"] = root_path;
+
+    auto projects = root["projects"];
+    for (auto i : inserts)
+        projects[root_path + "." + i.first.as<String>()] = i.second;
+
+    String s_cpp_libs_ho, s_cpp_libs_compiled;
+    String s_cpp_deps;
+
+    for (auto &lp : libraries)
+    {
+        auto &lib = lp.second;
+
+        if (commits[lib->get_dir()].empty())
+        {
+            std::cerr << "no commit for lib: " << lib->get_name() << "\n";
+            //continue;
+        }
+
+        if (lib->requires_building())
+            s_cpp_libs_compiled += "\"" + lib->get_name() + "\",";
+        else
+            s_cpp_libs_ho += "\"" + lib->get_name() + "\",";
+
+        YAML::Node project = projects[root_path + "." + lib->get_name()];
+        project["source"]["git"] = lib->get_url();
+        project["source"]["commit"] = commits[lib->get_dir()];
+        //project["source"][source] = source_name;
+        //project["source"]["remote"] = remote;
+
+        //if (!project["root_directory"].IsDefined())
+        //    project["root_directory"] = "libs/" + lib->get_name();
+
+        if (lib->get_name() == "log_setup")
+            project["source"] = projects[root_path + ".log"]["source"];
+
+        if (!project["files"].IsDefined())
+        {
+            project["files"].push_back("include/.*");
+            if (lib->requires_building())
+                project["files"].push_back("src/.*");
+        }
+
+        project["include_directories"]["public"].push_back("include");
+        if (lib->requires_building())
+            project["include_directories"]["private"].push_back("src");
+
+        YAML::Node deps;
+        for (auto &dep : lib->deps)
+        {
+            if (!lib->requires_building() && dep->requires_building())
+            {
+                YAML::Node header_dep;
+                header_dep["name"] = root_path + "." + dep->get_name();
+                header_dep["include_directories_only"] = true;
+                deps.push_back(header_dep);
+
+                s_cpp_deps += "add_public_dependency(\"" + lib->get_name() + "\", \"" + dep->get_name() + "\", true);\n";
+                continue;
+            }
+            deps.push_back(root_path + "." + dep->get_name());
+
+            s_cpp_deps += "add_public_dependency(\"" + lib->get_name() + "\", \"" + dep->get_name() + "\", false);\n";
+        }
+        for (auto &dep : lib->header_only_deps)
+        {
+            YAML::Node header_dep;
+            header_dep["name"] = root_path + "." + dep->get_name();
+            header_dep["include_directories_only"] = true;
+            deps.push_back(header_dep);
+
+            s_cpp_deps += "add_public_dependency(\"" + lib->get_name() + "\", \"" + dep->get_name() + "\", true);\n";
+        }
+    }
+
+    {
+        std::ofstream ofile1((fn.parent_path() / "cpp_libs_header_only.txt").string());
+        ofile1 << s_cpp_libs_ho;
+    }
+    {
+        std::ofstream ofile1((fn.parent_path() / "cpp_libs_compiled.txt").string());
+        ofile1 << s_cpp_libs_compiled;
+    }
+    {
+        std::ofstream ofile1((fn.parent_path() / "cpp_deps.txt").string());
+        ofile1 << s_cpp_deps;
+    }
+}
+
+void write_yaml(const path &fn)
+{
+    if (gen_sw)
+        write_yaml_sw(fn);
+    else
+        write_yaml_cppan(fn);
+}
+
 void debug()
 {
     read_json(out_dir / "processed.json");
@@ -644,19 +710,9 @@ void release()
 }
 
 int main(int argc, char* argv[])
-try
 {
-    /*if (argc != 3)
-    {
-        std::cerr << "usage: main boost_dir version\n";
-        return 1;
-    }*/
+    cl::ParseCommandLineOptions(argc, argv);
 
-    if (argc > 1)
-        boost_dir = argv[1];
-
-    if (argc > 2)
-        version = argv[2];
     source_name += version;
 
     std::istringstream ss(read_file(version + ".commits"));
@@ -680,20 +736,6 @@ try
     }*/
 
     fs::create_directories(out_dir);
-
     release();
-
     return 0;
-}
-catch (const std::exception &e)
-{
-    std::cerr << e.what() << "\n";
-    //if (auto st = boost::get_error_info<traced_exception>(e))
-    //    std::cerr << *st << '\n';
-    return 1;
-}
-catch (...)
-{
-    std::cerr << "Unhandled unknown exception" << "\n";
-    return 1;
 }

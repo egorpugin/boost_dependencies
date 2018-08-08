@@ -175,12 +175,12 @@ locale:
     dependencies:
         - name: pvt.cppan.demo.gnu.iconv.libiconv
           version: 1
-          conditions:
-            - UNIX
+          #conditions:
+            #- UNIX
         - name: pvt.cppan.demo.unicode.icu.i18n
           version: "*"
-          conditions:
-            - UNIX
+          #conditions:
+            #- UNIX
 
     post_sources: |
         if (WIN32)
@@ -355,3 +355,11 @@ thread:
         shared:
             post_sources: |
                 remove_src_win32(src/win32/tss_pe.cpp)
+
+uuid:
+    options:
+        any:
+            link_libraries:
+                win32:
+                    public:
+                        - Bcrypt
