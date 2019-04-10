@@ -1,3 +1,29 @@
+/*
+
+c++: 17
+dependencies:
+    - org.sw.demo.boost.algorithm: "*"
+    - org.sw.demo.boost.filesystem: "*"
+    - org.sw.demo.boost.functional: "*"
+    - org.sw.demo.boost.range: "*"
+    - org.sw.demo.jbeder.yaml_cpp: master
+    - org.sw.demo.nlohmann.json: "*"
+    - pub.egorpugin.primitives.sw.main: master
+
+*/
+
+#define NOMINMAX
+
+#include <boost/algorithm/string.hpp>
+#include <boost/filesystem.hpp>
+#include <boost/range.hpp>
+#include <boost/functional/hash.hpp>
+#include <primitives/filesystem.h>
+#include <primitives/sw/main.h>
+#include <primitives/sw/cl.h>
+#include <nlohmann/json.hpp>
+#include <yaml-cpp/yaml.h>
+
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -6,16 +32,6 @@
 #include <string>
 #include <vector>
 #include <unordered_map>
-
-#include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/range.hpp>
-#include <boost/functional/hash.hpp>
-#include <primitives/filesystem.h>
-#include <primitives/sw/main.h>
-#include <primitives/sw/settings.h>
-#include <nlohmann/json.hpp>
-#include <yaml-cpp/yaml.h>
 
 struct Library;
 
@@ -595,6 +611,9 @@ void write_yaml_sw(const path &fn)
 
     String s_cpp_libs_ho, s_cpp_libs_compiled;
     String s_cpp_deps;
+    String s_cpp_commits_map;
+
+    s_cpp_commits_map += "std::map<String, String> commits\n{\n";
 
     for (auto &lp : libraries)
     {
@@ -607,9 +626,10 @@ void write_yaml_sw(const path &fn)
         }
 
         if (lib->requires_building())
-            s_cpp_libs_compiled += "\"" + lib->get_name() + "\",";
+            s_cpp_libs_compiled += "\"" + lib->get_name() + "\",\n";
         else
-            s_cpp_libs_ho += "\"" + lib->get_name() + "\",";
+            s_cpp_libs_ho += "\"" + lib->get_name() + "\",\n";
+        s_cpp_commits_map += "    { \"" + lib->get_name() + "\", " + "\"" + commits[lib->get_dir()] + "\" },\n";
 
         YAML::Node project = projects[root_path + "." + lib->get_name()];
         project["source"]["git"] = lib->get_url();
@@ -662,6 +682,8 @@ void write_yaml_sw(const path &fn)
         }
     }
 
+    s_cpp_commits_map += "};\n";
+
     {
         std::ofstream ofile1((fn.parent_path() / "cpp_libs_header_only.txt").string());
         ofile1 << s_cpp_libs_ho;
@@ -673,6 +695,10 @@ void write_yaml_sw(const path &fn)
     {
         std::ofstream ofile1((fn.parent_path() / "cpp_deps.txt").string());
         ofile1 << s_cpp_deps;
+    }
+    {
+        std::ofstream ofile1((fn.parent_path() / "cpp_commits_map.txt").string());
+        ofile1 << s_cpp_commits_map;
     }
 }
 

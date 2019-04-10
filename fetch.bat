@@ -12,9 +12,9 @@ git fetch --recurse-submodules -j%j%
 @if %errorlevel% neq 0 goto :master
 
 git checkout tags/boost-%1 -b %1
-@if %errorlevel% neq 0 exit /b %errorlevel%
+::@if %errorlevel% neq 0 exit /b %errorlevel%
 @set tree=boost-%1
-goto :next
+@goto :next
 
 :master
 git checkout master
@@ -26,7 +26,7 @@ git pull origin master
 git submodule update --init --recursive -j %j%
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
-git ls-tree -r -d %tree% | grep libs/ | grep -v doc | gawk '{print $4" "$3}' > d:\dev\boost_deps\%1.commits
+git ls-tree -r -d %tree% | grep libs/ | grep -v doc | grep -v headers | gawk '{print $4" "$3}' | grep -v "numeric " > d:\dev\boost_deps\%1.commits
 @if %errorlevel% neq 0 exit /b %errorlevel%
 
 @goto :eof
