@@ -1,5 +1,4 @@
 /*
-
 c++: 17
 dependencies:
     - org.sw.demo.boost.algorithm: "*"
@@ -9,7 +8,6 @@ dependencies:
     - org.sw.demo.jbeder.yaml_cpp: master
     - org.sw.demo.nlohmann.json: "*"
     - pub.egorpugin.primitives.sw.main: master
-
 */
 
 #define NOMINMAX
@@ -44,10 +42,8 @@ using Libraries = std::set<Library*, LibraryLess>;
 using LibraryMap = std::map<String, Library*>;
 
 const path out_dir = "out";
-const path bs_insertions_file = "inserts.yml";
 cl::opt<path> boost_dir("d", cl::desc("directory with boost sources"), cl::value_desc("boost dir"), cl::init("d:/dev/boost"));
 cl::opt<String> version("v", cl::desc("used to open version.commits file"), cl::value_desc("boost version"), cl::Required);
-cl::opt<bool> gen_sw("sw", cl::desc("generate sw script"));
 String remote;
 const String source = "tag";
 String source_name = "boost-";
@@ -455,165 +451,20 @@ void process()
     }
 }
 
-void post_process()
-{
-}
-
-void write_yaml_cppan(const path &fn)
+void write_yaml_sw(const path &out_dir)
 {
     String root_path = "pvt.cppan.demo.boost";
 
-    YAML::Node inserts;
-    inserts = YAML::LoadFile(bs_insertions_file.string());
-
     YAML::Node root;
-    // make cppan happy
-    // TODO: remove
-    // FIXME: do not throw error when all sources are provided
-    root["source"]["git"] = "https://github.com/boostorg";
-    root["version"] = version.getValue();
-    root["root_project"] = root_path;
-
     auto projects = root["projects"];
-    for (auto i : inserts)
-        projects[root_path + "." + i.first.as<String>()] = i.second;
-
-    for (auto &lp : libraries)
-    {
-        auto &lib = lp.second;
-
-        if (commits[lib->get_dir()].empty())
-        {
-            std::cerr << "no commit for lib: " << lib->get_name() << "\n";
-            //continue;
-        }
-
-        YAML::Node project = projects[root_path + "." + lib->get_name()];
-        project["type"] = "library";
-        project["source"]["git"] = lib->get_url();
-        project["source"]["commit"] = commits[lib->get_dir()];
-        //project["source"][source] = source_name;
-        //project["source"]["remote"] = remote;
-
-        //if (!project["root_directory"].IsDefined())
-        //    project["root_directory"] = "libs/" + lib->get_name();
-
-        if (lib->get_name() == "log_setup")
-            project["source"] = projects[root_path + ".log"]["source"];
-
-        if (!project["files"].IsDefined())
-        {
-            project["files"].push_back("include/.*");
-            if (lib->requires_building())
-                project["files"].push_back("src/.*");
-        }
-
-        project["include_directories"]["public"].push_back("include");
-        if (lib->requires_building())
-            project["include_directories"]["private"].push_back("src");
-
-        YAML::Node deps;
-        for (auto &dep : lib->deps)
-        {
-            if (!lib->requires_building() && dep->requires_building())
-            {
-                YAML::Node header_dep;
-                header_dep["name"] = root_path + "." + dep->get_name();
-                header_dep["include_directories_only"] = true;
-                deps.push_back(header_dep);
-                continue;
-            }
-            deps.push_back(root_path + "." + dep->get_name());
-        }
-        for (auto &dep : lib->header_only_deps)
-        {
-            YAML::Node header_dep;
-            header_dep["name"] = root_path + "." + dep->get_name();
-            header_dep["include_directories_only"] = true;
-            deps.push_back(header_dep);
-        }
-        if (!lib->deps.empty() || !lib->header_only_deps.empty())
-        {
-            for (auto d : deps)
-                project["dependencies"].push_back(d);
-        }
-
-        if (lib->requires_building())
-        {
-            auto n = lib->get_name();
-            boost::algorithm::to_upper(n);
-            project["options"]["static"]["definitions"]["public"].push_back("BOOST_" + n + "_STATIC_LINK");
-            project["options"]["static"]["definitions"]["public"].push_back("BOOST_ALL_STATIC_LINK");
-            project["options"]["static"]["definitions"]["public"].push_back("BOOST_" + n + "_BUILD_LIB");
-
-            project["options"]["shared"]["definitions"]["public"].push_back("BOOST_" + n + "_DYN_LINK");
-            project["options"]["shared"]["definitions"]["public"].push_back("BOOST_ALL_DYN_LINK");
-            project["options"]["shared"]["definitions"]["private"].push_back("BOOST_" + n + "_BUILD_DLL");
-            project["options"]["shared"]["definitions"]["public"].push_back("BOOST_" + n + "_USE_DLL");
-
-            project["options"]["any"]["definitions"]["private"].push_back("BOOST_" + n + "_SOURCE");
-            project["options"]["any"]["definitions"]["private"].push_back("BOOST_" + n + "_BUILDING_THE_LIB");
-        }
-
-        if (!lib->requires_building())
-            project["header_only"] = true;
-
-        {
-            error_code ec;
-            auto p = fn.parent_path();
-            fs::create_directories(p / "single", ec);
-            fs::create_directories(p / "root", ec);
-
-            {
-                auto r = YAML::Clone(root);
-                r["projects"] = YAML::Node();
-                r["projects"][root_path + "." + lib->get_name()] = project;
-
-                std::ofstream ofile((p / "root" / (lib->get_name() + ".yml")).string());
-                ofile.width(4);
-                ofile << r;
-            }
-
-            {
-                auto r = YAML::Clone(project);
-                r["version"] = root["version"];
-
-                std::ofstream ofile((p / "single" / (lib->get_name() + ".yml")).string());
-                ofile.width(4);
-                ofile << r;
-            }
-        }
-    }
-
-    std::ofstream ofile1(fn.string());
-    ofile1.width(4);
-    ofile1 << root;
-}
-
-void write_yaml_sw(const path &fn)
-{
-    String root_path = "pvt.cppan.demo.boost";
-
-    YAML::Node inserts;
-    inserts = YAML::LoadFile(bs_insertions_file.string());
-
-    YAML::Node root;
-    // make cppan happy
-    // TODO: remove
-    // FIXME: do not throw error when all sources are provided
-    root["source"]["git"] = "https://github.com/boostorg";
-    root["version"] = version.getValue();
-    root["root_project"] = root_path;
-
-    auto projects = root["projects"];
-    for (auto i : inserts)
-        projects[root_path + "." + i.first.as<String>()] = i.second;
 
     String s_cpp_libs_ho, s_cpp_libs_compiled;
     String s_cpp_deps;
     String s_cpp_commits_map;
 
-    s_cpp_commits_map += "std::map<String, String> commits\n{\n";
+    // non static - causes destruction in shared object
+    //s_cpp_commits_map += "static const std::map<String, String> commits\n{\n";
+    s_cpp_commits_map += "const std::map<String, String> commits\n{\n";
 
     for (auto &lp : libraries)
     {
@@ -629,16 +480,12 @@ void write_yaml_sw(const path &fn)
             s_cpp_libs_compiled += "\"" + lib->get_name() + "\",\n";
         else
             s_cpp_libs_ho += "\"" + lib->get_name() + "\",\n";
-        s_cpp_commits_map += "    { \"" + lib->get_name() + "\", " + "\"" + commits[lib->get_dir()] + "\" },\n";
+        if (!commits[lib->get_dir()].empty())
+            s_cpp_commits_map += "    { \"" + lib->get_name() + "\", " + "\"" + commits[lib->get_dir()] + "\" },\n";
 
         YAML::Node project = projects[root_path + "." + lib->get_name()];
         project["source"]["git"] = lib->get_url();
         project["source"]["commit"] = commits[lib->get_dir()];
-        //project["source"][source] = source_name;
-        //project["source"]["remote"] = remote;
-
-        //if (!project["root_directory"].IsDefined())
-        //    project["root_directory"] = "libs/" + lib->get_name();
 
         if (lib->get_name() == "log_setup")
             project["source"] = projects[root_path + ".log"]["source"];
@@ -685,29 +532,21 @@ void write_yaml_sw(const path &fn)
     s_cpp_commits_map += "};\n";
 
     {
-        std::ofstream ofile1((fn.parent_path() / "cpp_libs_header_only.txt").string());
+        std::ofstream ofile1((out_dir / "cpp_libs_header_only.txt").string());
         ofile1 << s_cpp_libs_ho;
     }
     {
-        std::ofstream ofile1((fn.parent_path() / "cpp_libs_compiled.txt").string());
+        std::ofstream ofile1((out_dir / "cpp_libs_compiled.txt").string());
         ofile1 << s_cpp_libs_compiled;
     }
     {
-        std::ofstream ofile1((fn.parent_path() / "cpp_deps.txt").string());
+        std::ofstream ofile1((out_dir / "cpp_deps.txt").string());
         ofile1 << s_cpp_deps;
     }
     {
-        std::ofstream ofile1((fn.parent_path() / "cpp_commits_map.txt").string());
+        std::ofstream ofile1((out_dir / "cpp_commits_map.txt").string());
         ofile1 << s_cpp_commits_map;
     }
-}
-
-void write_yaml(const path &fn)
-{
-    if (gen_sw)
-        write_yaml_sw(fn);
-    else
-        write_yaml_cppan(fn);
 }
 
 void debug()
@@ -715,7 +554,7 @@ void debug()
     read_json(out_dir / "processed.json");
     write_libraries(out_dir / "processed.json");
     print_dot(out_dir / "processed.dot");
-    write_yaml(out_dir / "cppan.yml");
+    write_yaml_sw(out_dir);
 }
 
 void release()
@@ -728,11 +567,11 @@ void release()
     prepare();
     //process_simple();
     //process();
-    post_process();
+    //post_process();
 
     write_libraries(out_dir / "processed.json");
     print_dot(out_dir / "processed.dot");
-    write_yaml(out_dir / "cppan.yml");
+    write_yaml_sw(out_dir);
 }
 
 int main(int argc, char* argv[])
@@ -751,15 +590,6 @@ int main(int argc, char* argv[])
         lib = lib.substr(5); // length of "libs/"
         commits[lib] = commit;
     }
-
-    /*if (argc > 3)
-        remote = argv[3];
-    else
-    {
-        std::cerr << "No remote specified\n";
-        std::cerr << "usage: boost_deps boost_dir version remote\n";
-        return 1;
-    }*/
 
     fs::create_directories(out_dir);
     release();
