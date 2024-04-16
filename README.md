@@ -2,9 +2,9 @@
 
 ## Processing
 
-run: run version
+run: `run version`
 
-example: `run 1.71.0`
+example: `run 1.86.0`
 
 ## Building
 
