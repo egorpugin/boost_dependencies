@@ -1,26 +1,16 @@
 /*
-c++: 17
+c++: 23
+package_definitions: true
 dependencies:
-    - org.sw.demo.boost.algorithm: "*"
-    - org.sw.demo.boost.filesystem: "*"
-    - org.sw.demo.boost.functional: "*"
-    - org.sw.demo.boost.range: "*"
-    - org.sw.demo.jbeder.yaml_cpp: master
-    - org.sw.demo.nlohmann.json: "*"
-    - pub.egorpugin.primitives.sw.main: master
+    - org.sw.demo.nlohmann.json
+    - pub.egorpugin.primitives.yaml
+    - pub.egorpugin.primitives.sw.main
 */
 
-#define NOMINMAX
-
-#include <boost/algorithm/string.hpp>
-#include <boost/filesystem.hpp>
-#include <boost/range.hpp>
-#include <boost/functional/hash.hpp>
-#include <primitives/filesystem.h>
+#include <primitives/yaml.h>
 #include <primitives/sw/main.h>
 #include <primitives/sw/cl.h>
 #include <nlohmann/json.hpp>
-#include <yaml-cpp/yaml.h>
 
 #include <iostream>
 #include <fstream>
@@ -216,7 +206,7 @@ void read_dir(const path &dir)
     // find files
     auto find_files = [](const path &dir, const String &prefix = String())
     {
-        for (auto &f : boost::make_iterator_range(fs::directory_iterator(dir / prefix), {}))
+        for (auto &&f : fs::directory_iterator(dir / prefix))
         {
             if (!fs::is_directory(f))
                 continue;
@@ -234,7 +224,7 @@ void read_dir(const path &dir)
                     continue;
                 if (d == "src" && fs::exists(p / "build"))
                     l->has_source_dir = true;
-                for (auto &f : boost::make_iterator_range(fs::recursive_directory_iterator(p / d), {}))
+                for (auto &f : fs::recursive_directory_iterator(p / d))
                 {
                     if (!fs::is_regular_file(f))
                         continue;
