@@ -1,5 +1,5 @@
 /*
-c++: 23
+c++: 26
 package_definitions: true
 dependencies:
     - org.sw.demo.nlohmann.json
@@ -12,6 +12,7 @@ dependencies:
 #include <primitives/sw/cl.h>
 #include <nlohmann/json.hpp>
 
+#include <format>
 #include <iostream>
 #include <fstream>
 #include <map>
@@ -450,6 +451,7 @@ void write_yaml_sw(const path &out_dir)
 
     String s_cpp_libs_ho, s_cpp_libs_compiled;
     String s_cpp_deps;
+    String s_cpp_deps2, s_cpp_deps2_vars;
     String s_cpp_commits_map;
 
     // non static - causes destruction in shared object
@@ -459,6 +461,12 @@ void write_yaml_sw(const path &out_dir)
     for (auto &lp : libraries)
     {
         auto &lib = lp.second;
+
+        // add underline because some libs have reserved names (static_assert)
+        s_cpp_deps2_vars += std::format("auto {}_ = boost_targets[\"{}\"s];\n", lib->get_name(), lib->get_name());
+        s_cpp_deps2_vars += std::format("std::shared_ptr<sw::Dependency> {}__;\n", lib->get_name());
+        s_cpp_deps2_vars += std::format("if ({}_) {}__ = std::make_shared<Dependency>(*{}_);\n", lib->get_name(), lib->get_name(), lib->get_name());
+        s_cpp_deps2_vars += "\n";
 
         if (commits[lib->get_dir()].empty())
         {
@@ -491,6 +499,19 @@ void write_yaml_sw(const path &out_dir)
         if (lib->requires_building())
             project["include_directories"]["private"].push_back("src");
 
+        auto add_dep0 = [&](auto &&var, auto &&lib, auto &&dep, auto &&val) {
+            var += "add_public_dependency("s + lib + ", " + dep + ", " + val + ");\n";
+        };
+        auto add_dep = [&](auto &&lib, auto &&dep, auto &&val) {
+            add_dep0(s_cpp_deps, "\""s + lib->get_name() + "\"", "\"" + dep->get_name() + "\"", std::string{val});
+        };
+        auto add_dep2 = [&](auto &&lib, auto &&dep, auto &&val) {
+            s_cpp_deps2 += "    ";
+            add_dep0(s_cpp_deps2, "t", dep->get_name() + "__", std::string{val});
+        };
+
+        s_cpp_deps2 += std::format("if ({}_) {}_->add_loader([=](auto &t) {{\n", lib->get_name(), lib->get_name());
+
         YAML::Node deps;
         for (auto &dep : lib->deps)
         {
@@ -501,12 +522,14 @@ void write_yaml_sw(const path &out_dir)
                 header_dep["include_directories_only"] = true;
                 deps.push_back(header_dep);
 
-                s_cpp_deps += "add_public_dependency(\"" + lib->get_name() + "\", \"" + dep->get_name() + "\", true);\n";
+                add_dep(lib, dep, "true"sv);
+                add_dep2(lib, dep, "true"sv);
                 continue;
             }
             deps.push_back(root_path + "." + dep->get_name());
 
-            s_cpp_deps += "add_public_dependency(\"" + lib->get_name() + "\", \"" + dep->get_name() + "\", false);\n";
+            add_dep(lib, dep, "false"sv);
+            add_dep2(lib, dep, "false"sv);
         }
         for (auto &dep : lib->header_only_deps)
         {
@@ -515,8 +538,10 @@ void write_yaml_sw(const path &out_dir)
             header_dep["include_directories_only"] = true;
             deps.push_back(header_dep);
 
-            s_cpp_deps += "add_public_dependency(\"" + lib->get_name() + "\", \"" + dep->get_name() + "\", true);\n";
+            add_dep(lib, dep, "true"sv);
+            add_dep2(lib, dep, "true"sv);
         }
+        s_cpp_deps2 += "});\n";
     }
 
     s_cpp_commits_map += "};\n";
@@ -532,6 +557,11 @@ void write_yaml_sw(const path &out_dir)
     {
         std::ofstream ofile1((out_dir / "cpp_deps.txt").string());
         ofile1 << s_cpp_deps;
+    }
+    {
+        std::ofstream ofile1((out_dir / "cpp_deps2.txt").string());
+        ofile1 << s_cpp_deps2_vars << "\n";
+        ofile1 << s_cpp_deps2;
     }
     {
         std::ofstream ofile1((out_dir / "cpp_commits_map.txt").string());
